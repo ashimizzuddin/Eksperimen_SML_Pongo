@@ -1,0 +1,57 @@
+name: Automated Preprocessing Pipeline
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'credit_risk_raw.csv'
+      - 'automate_Pongo.py'
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  preprocess:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Python 3.12.7
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12.7'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pandas numpy scikit-learn
+    
+    - name: Run preprocessing pipeline
+      run: |
+        python automate_Pongo.py
+    
+    - name: Verify preprocessed data
+      run: |
+        echo "=== Checking preprocessed files ==="
+        ls -la preprocessing/
+        echo "=== Preview train data ==="
+        head -5 preprocessing/credit_risk_train.csv
+        echo "=== Preview test data ==="
+        head -5 preprocessing/credit_risk_test.csv
+    
+    - name: Upload preprocessed dataset
+      uses: actions/upload-artifact@v3
+      with:
+        name: preprocessed-dataset
+        path: preprocessing/
+        retention-days: 30
+    
+    - name: Commit preprocessed data
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add preprocessing/
+        git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update preprocessed dataset [skip ci]"
+        git push || echo "Nothing to push"
